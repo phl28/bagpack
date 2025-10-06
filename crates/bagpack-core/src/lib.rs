@@ -151,6 +151,7 @@ fn collect_brew() -> Result<Vec<PackageRecord>, CollectionError> {
     struct BrewFormula {
         name: String,
         #[serde(default)]
+        #[allow(dead_code)]
         installed_versions: Vec<String>,
         #[serde(default)]
         current_version: Option<String>,
@@ -394,7 +395,7 @@ struct CommandResult {
 
 #[derive(Debug, Error)]
 pub enum CollectionError {
-    #[error("{program} failed to run: {source}")]
+    #[error(transparent)]
     Command(#[from] CommandError),
     #[error("json parse error: {0}")]
     Json(#[from] serde_json::Error),

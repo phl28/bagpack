@@ -119,7 +119,7 @@
         </article>
       {/each}
     </section>
-  {/else}
+  {/if}
 </main>
 
 <style>
