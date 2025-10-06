@@ -1,0 +1,31 @@
+{
+  "name": "bagpack-tui",
+  "version": "0.1.0",
+  "description": "OpenTUI client for Bagpack inventory data",
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/main.ts",
+    "build": "bun run src/main.ts",
+    "check": "bunx tsc --noEmit"
+  },
+  "keywords": [
+    "bagpack",
+    "tui",
+    "opentui"
+  ],
+  "author": "",
+  "license": "MIT",
+  "packageManager": "bun@1.2.23",
+  "dependencies": {
+    "@opentui/core": "latest",
+    "@opentui/vue": "latest",
+    "vue": "^3.5.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/node": "^22.7.4",
+    "typescript": "^5.6.2"
+  },
+  "module": "src/main.ts",
+  "private": true
+}

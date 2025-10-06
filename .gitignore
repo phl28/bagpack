@@ -1,0 +1,18 @@
+# Rust
+/target
+
+# Node.js
+node_modules/
+.pnp.cjs
+.pnp.loader.mjs
+
+# macOS
+.DS_Store
+
+# Local env files
+.env.local
+
+# Logs
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*

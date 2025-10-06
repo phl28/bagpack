@@ -1,0 +1,11 @@
+[workspace]
+members = [
+    "crates/bagpack-core",
+    "apps/bagpack-tauri/src-tauri",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+
+[workspace.dependencies]
