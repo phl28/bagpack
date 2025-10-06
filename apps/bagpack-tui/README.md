@@ -13,6 +13,6 @@ If the sandbox lacks network access, update `package.json` now and rerun `bun in
 
 ## Project Notes
 
-- Keep shared domain models aligned with the Rust crate—see `src/index.tsx` for the temporary mirror types.
-- Prefer pure TypeScript command execution; reach for native bindings only if input latency becomes an issue.
+- Keep shared domain models aligned with the Rust crate—see `src/types.ts` for the mirrored interfaces.
+- Collectors shell out to `brew`, `npm`, and `pip`; ensure they are available on `PATH` or expect warnings in the UI.
 - Log keyboard shortcuts and ergonomics in `docs/ui/tui/` as features land.

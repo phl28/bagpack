@@ -26,12 +26,12 @@
   Tauri Prototype Plan
 
   - [x] Set up Rust workspace: core crate (bagpack-core) + Tauri app (bagpack-tauri).
-  - [ ] Implement collectors in Rust:
+  - [x] Implement collectors in Rust:
       - Abstractions per manager (brew.rs, npm.rs, pip.rs) returning Vec<PackageRecord>.
       - Use serde_json to parse CLI JSON, fallback to text parsing when needed.
       - Install-date helper: inspect filesystem (Cellar, global node_modules, site-packages) using metadata().created(); if unavailable, return None.
-  - [ ] Aggregate results into the shared Inventory struct with generated_at timestamp.
-  - [ ] Wire Tauri commands:
+  - [x] Aggregate results into the shared Inventory struct with generated_at timestamp.
+  - [x] Wire Tauri commands:
       - fetch_inventory (manual refresh; runs collectors, updates state).
       - schedule_refresh (starts/refreshes daily timer).
       - stop_refresh (for cleanup on app close).
@@ -53,7 +53,7 @@
   OpenTUI Prototype Plan
 
   - [x] Initialize TypeScript project (Bun init, Vue + OpenTUI scaffolding).
-  - [ ] Build collector layer in TS:
+  - [x] Build collector layer in TS:
       - Modules per manager invoking commands via child_process.spawn.
       - Parse JSON outputs; fallback to text parsing libs only if necessary.
       - Convert to shared PackageRecord interface and assemble Inventory.

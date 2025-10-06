@@ -1,22 +1,15 @@
 import { computed, createApp, defineComponent, reactive } from "vue";
 import { render } from "@opentui/vue";
 
-export type PackageStatus = "current" | "outdated" | "unknown";
-export type PackageManager = "brew" | "npm" | "pip";
-
-export interface PackageRecord {
-  name: string;
-  current_version: string;
-  latest_version: string | null;
-  installed_at: string | null;
-  status: PackageStatus;
-  manager: PackageManager;
-}
-
-export interface InventorySnapshot {
-  generated_at?: string | null;
-  packages: PackageRecord[];
-}
+import { collectInventory } from "./collect";
+import type {
+  CollectionSummary,
+  CollectionWarning,
+  InventorySnapshot,
+  PackageManager,
+  PackageRecord,
+  PackageStatus,
+} from "./types";
 
 const managerLabels: Record<PackageManager, string> = {
   brew: "Homebrew",
@@ -30,62 +23,60 @@ const statusColors: Record<PackageStatus, string> = {
   unknown: "#a1a1aa",
 };
 
-const demoSnapshot: InventorySnapshot = {
-  generated_at: new Date().toISOString(),
-  packages: [
-    {
-      name: "wget",
-      current_version: "1.24.5",
-      latest_version: "1.24.6",
-      installed_at: "2024-09-17T08:22:00Z",
-      status: "outdated",
-      manager: "brew",
-    },
-    {
-      name: "typescript",
-      current_version: "5.5.2",
-      latest_version: "5.6.3",
-      installed_at: "2025-02-11T15:10:30Z",
-      status: "current",
-      manager: "npm",
-    },
-    {
-      name: "requests",
-      current_version: "2.32.3",
-      latest_version: null,
-      installed_at: null,
-      status: "unknown",
-      manager: "pip",
-    },
-  ],
-};
-
 const App = defineComponent({
   name: "BagpackTui",
   setup() {
-    const snapshot = reactive(demoSnapshot);
+    const state = reactive({
+      summary: null as CollectionSummary | null,
+      snapshot: null as InventorySnapshot | null,
+      warnings: [] as CollectionWarning[],
+      error: null as string | null,
+      loading: true,
+    });
+
+    collectInventory()
+      .then((summary) => {
+        state.summary = summary;
+        state.snapshot = summary.snapshot;
+        state.warnings = summary.warnings;
+      })
+      .catch((err) => {
+        state.error = err instanceof Error ? err.message : String(err);
+      })
+      .finally(() => {
+        state.loading = false;
+      });
 
     const grouped = computed(() => {
-      return snapshot.packages.reduce<Record<PackageManager, PackageRecord[]>>(
-        (acc, pkg) => {
-          acc[pkg.manager].push(pkg);
-          return acc;
-        },
-        {
-          brew: [],
-          npm: [],
-          pip: [],
-        },
-      );
+      const base: Record<PackageManager, PackageRecord[]> = {
+        brew: [],
+        npm: [],
+        pip: [],
+      };
+
+      if (!state.snapshot) {
+        return base;
+      }
+
+      for (const pkg of state.snapshot.packages) {
+        base[pkg.manager].push(pkg);
+      }
+
+      return base;
     });
 
     const formattedGeneratedAt = computed(() => {
-      return snapshot.generated_at
-        ? new Date(snapshot.generated_at).toLocaleString()
-        : "Unknown";
+      const value = state.snapshot?.generated_at;
+      if (!value) return "Unknown";
+      try {
+        return new Date(value).toLocaleString();
+      } catch (error) {
+        return value;
+      }
     });
 
     return {
+      state,
       grouped,
       formattedGeneratedAt,
       managerLabels,
@@ -97,26 +88,43 @@ const App = defineComponent({
       <text fg="#7de5ff">
         Bagpack Inventory · {{ formattedGeneratedAt }}
       </text>
-      <text fg="#a1a1aa">Press Ctrl+C to exit.</text>
-      <group gap="1">
-        <box
-          v-for="(packages, manager) in grouped"
-          :key="manager"
-          :title="managerLabels[manager] + ' (' + packages.length + ')'"
-          padding="1"
-          min-width="32"
-        >
-          <group direction="vertical">
-            <template v-if="packages.length">
-              <group v-for="pkg in packages" :key="pkg.manager + '-' + pkg.name">
-                <text fg="#ffffff">{{ pkg.name }}</text>
-                <text :fg="statusColors[pkg.status]">{{ pkg.status.toUpperCase() }}</text>
+      <template v-if="state.loading">
+        <text fg="#a1a1aa">Collecting package data…</text>
+      </template>
+      <template v-else-if="state.error">
+        <text fg="#ff7373">{{ state.error }}</text>
+      </template>
+      <template v-else>
+        <group direction="vertical" gap="1">
+          <box v-if="state.warnings.length" title="Warnings" padding="1" min-width="60">
+            <group direction="vertical">
+              <text v-for="warning in state.warnings" :key="warning.manager" fg="#ffcc80">
+                {{ warning.manager.toUpperCase() }}: {{ warning.message }}
+              </text>
+            </group>
+          </box>
+          <group gap="1">
+            <box
+              v-for="(packages, manager) in grouped"
+              :key="manager"
+              :title="managerLabels[manager] + ' (' + packages.length + ')'"
+              padding="1"
+              min-width="32"
+            >
+              <group direction="vertical">
+                <template v-if="packages.length">
+                  <group v-for="pkg in packages" :key="pkg.manager + '-' + pkg.name">
+                    <text fg="#ffffff">{{ pkg.name }}</text>
+                    <text :fg="statusColors[pkg.status]">{{ pkg.status.toUpperCase() }}</text>
+                  </group>
+                </template>
+                <text v-else fg="#71717a">No packages recorded.</text>
               </group>
-            </template>
-            <text v-else fg="#71717a">No packages recorded.</text>
+            </box>
           </group>
-        </box>
-      </group>
+        </group>
+      </template>
+      <text fg="#a1a1aa">Press Ctrl+C to exit.</text>
     </group>
   `,
 });

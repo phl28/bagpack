@@ -1,9 +1,16 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
-  import type { InventorySnapshot, PackageRecord } from "$lib/types";
+  import type {
+    CollectionSummary,
+    CollectionWarning,
+    InventorySnapshot,
+    PackageRecord,
+  } from "$lib/types";
 
+  let summary: CollectionSummary | null = null;
   let inventory: InventorySnapshot | null = null;
+  let warnings: CollectionWarning[] = [];
   let error: string | null = null;
   let isLoading = true;
 
@@ -21,7 +28,9 @@
 
   onMount(async () => {
     try {
-      inventory = await invoke<InventorySnapshot>("get_inventory");
+      summary = await invoke<CollectionSummary>("get_inventory");
+      inventory = summary.snapshot;
+      warnings = summary.warnings ?? [];
     } catch (err) {
       error = err instanceof Error ? err.message : "Failed to load inventory";
     } finally {
@@ -65,6 +74,19 @@
   {:else if !inventory || inventory.packages.length === 0}
     <p class="status">No packages found yet.</p>
   {:else}
+    {#if warnings.length}
+      <aside class="warnings">
+        <h2>Collection Warnings</h2>
+        <ul>
+          {#each warnings as warning}
+            <li>
+              <strong>{warning.manager}</strong>
+              <span>{warning.message}</span>
+            </li>
+          {/each}
+        </ul>
+      </aside>
+    {/if}
     <section class="grid">
       {#each allManagers as manager}
         <article class="panel">
@@ -139,6 +161,44 @@
 .status.error {
   color: #ffb4b4;
   background: rgba(134, 32, 44, 0.6);
+}
+
+.warnings {
+  background: rgba(38, 26, 56, 0.65);
+  border: 1px solid rgba(141, 122, 255, 0.4);
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  color: #d7ccff;
+}
+
+.warnings h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #f1eaff;
+}
+
+.warnings ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.warnings li {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.warnings strong {
+  font-size: 0.85rem;
+  color: #b19cff;
+  text-transform: uppercase;
 }
 
 .grid {
