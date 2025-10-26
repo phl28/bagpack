@@ -4,8 +4,9 @@
   "description": "OpenTUI client for Bagpack inventory data",
   "type": "module",
   "scripts": {
-    "dev": "bun --watch src/main.ts",
-    "build": "bun run src/main.ts",
+    "dev": "bun run src/main.tsx",
+    "watch": "bun --watch src/main.tsx",
+    "build": "bun run src/main.tsx",
     "check": "bunx tsc --noEmit"
   },
   "keywords": [
@@ -18,14 +19,14 @@
   "packageManager": "bun@1.2.23",
   "dependencies": {
     "@opentui/core": "latest",
-    "@opentui/vue": "latest",
-    "vue": "^3.5.0"
+    "@opentui/solid": "latest",
+    "solid-js": "^1.8.22"
   },
   "devDependencies": {
     "@types/bun": "latest",
     "@types/node": "^22.7.4",
     "typescript": "^5.6.2"
   },
-  "module": "src/main.ts",
+  "module": "src/main.tsx",
   "private": true
 }
