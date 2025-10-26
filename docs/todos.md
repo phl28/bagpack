@@ -52,7 +52,7 @@
 
   OpenTUI Prototype Plan
 
-  - [x] Initialize TypeScript project (Bun init, Vue + OpenTUI scaffolding).
+  - [x] Initialize TypeScript project (Bun init, Solid + OpenTUI scaffolding).
   - [x] Build collector layer in TS:
       - Modules per manager invoking commands via child_process.spawn.
       - Parse JSON outputs; fallback to text parsing libs only if necessary.
@@ -61,10 +61,10 @@
   - [ ] Background poll:
       - Use setInterval equivalent (OpenTUI runtime) to trigger daily refresh; store next scheduled time.
       - Display status indicator in footer (last refresh time, next scheduled run).
-  - [ ] UI layout:
-      - Sidebar with managers and counts (current, outdated, -).
-      - Main panel listing packages with table component, filter toggles, detail modal.
-      - Command palette entries: Refresh, Export JSON, Toggle Manager visibility.
+  - [x] UI layout:
+      - Sidebar with managers and counts; main panel lists selected manager.
+      - Sorting: Outdated first; per-row Upgrade; header Update all.
+      - “Others” manager backed by `~/.bagpack/custom-packages.json`.
   - [ ] Export support:
       - Provide Save JSON action writing to stdout or user-specified path.
   - [ ] Testing:
