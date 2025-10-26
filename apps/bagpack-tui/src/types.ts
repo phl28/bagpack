@@ -1,5 +1,5 @@
 export type PackageStatus = "current" | "outdated" | "unknown";
-export type PackageManager = "brew" | "npm" | "pip";
+export type PackageManager = "brew" | "npm" | "pip" | "custom";
 
 export interface PackageRecord {
   name: string;

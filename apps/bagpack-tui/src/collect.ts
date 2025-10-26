@@ -7,6 +7,17 @@ import {
   PackageStatus,
 } from "./types";
 
+type CustomEntry = {
+  id: string;
+  name: string;
+  install_cmd: string;
+  update_cmd: string;
+  version_cmd?: string;
+  version_regex?: string;
+  last_updated_at?: string;
+  notes?: string;
+};
+
 interface CommandResult {
   code: number;
   stdout: string;
@@ -55,7 +66,7 @@ async function collectBrew(): Promise<PackageRecord[]> {
 
   if (!installed.size) return [];
 
-  const outdated = await runCommand("brew", ["outdated", "--json=v2"]);
+  const outdated = await runCommand("brew", ["outdated", "--json=v2"], [0, 1]);
   const outdatedMap = new Map<string, string>();
 
   if (outdated.stdout.trim()) {
@@ -79,8 +90,8 @@ async function collectBrew(): Promise<PackageRecord[]> {
           outdatedMap.set(formula.name, latest);
         }
       }
-    } catch (error) {
-      throw new Error(`Failed to parse brew outdated JSON: ${String(error)}`);
+    } catch (_error) {
+      // Be tolerant: treat as no known outdated packages
     }
   }
 
@@ -203,6 +214,7 @@ export async function collectInventory(): Promise<CollectionSummary> {
     { manager: "brew", runner: collectBrew },
     { manager: "npm", runner: collectNpm },
     { manager: "pip", runner: collectPip },
+    { manager: "custom", runner: collectCustom },
   ];
 
   for (const { manager, runner } of handlers) {
@@ -218,4 +230,156 @@ export async function collectInventory(): Promise<CollectionSummary> {
   }
 
   return { snapshot, warnings };
+}
+
+// ---------------- Custom (Others) ----------------
+
+function homeDir(): string | null {
+  return Bun.env.HOME ?? null;
+}
+
+function customStorePath(): string {
+  const home = homeDir();
+  if (!home) throw new Error("HOME not set");
+  return `${home}/.bagpack/custom-packages.json`;
+}
+
+async function readFile(path: string): Promise<string> {
+  try {
+    return await Bun.file(path).text();
+  } catch {
+    return "";
+  }
+}
+
+async function writeFile(path: string, content: string): Promise<void> {
+  await Bun.write(path, content);
+}
+
+async function loadCustomEntries(): Promise<CustomEntry[]> {
+  const path = customStorePath();
+  const content = await readFile(path);
+  if (!content.trim()) return [];
+  try {
+    const arr = JSON.parse(content) as CustomEntry[];
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+async function saveCustomEntries(entries: CustomEntry[]): Promise<void> {
+  const path = customStorePath();
+  await writeFile(path, JSON.stringify(entries, null, 2));
+}
+
+function parseVersion(output: string, regex?: string): string | null {
+  if (regex) {
+    try {
+      const rx = new RegExp(regex);
+      const m = output.match(rx);
+      if (m && (m[1] || m[0])) return (m[1] ?? m[0]).trim();
+    } catch {}
+  }
+  const line = output.split("\n").find((l) => l.trim());
+  return line ? line.trim() : null;
+}
+
+async function runShell(cmd: string): Promise<CommandResult> {
+  const p = Bun.spawn(["sh", "-lc", cmd], { stdout: "pipe", stderr: "pipe" });
+  const code = await p.exited;
+  const stdout = p.stdout ? await new Response(p.stdout).text() : "";
+  const stderr = p.stderr ? await new Response(p.stderr).text() : "";
+  return { code, stdout, stderr };
+}
+
+async function collectCustom(): Promise<PackageRecord[]> {
+  const entries = await loadCustomEntries();
+  const records: PackageRecord[] = [];
+  for (const e of entries) {
+    let current = "-";
+    if (e.version_cmd) {
+      try {
+        const res = await runShell(e.version_cmd);
+        if (res.code === 0) {
+          const v = parseVersion(res.stdout, e.version_regex);
+          if (v) current = v;
+        }
+      } catch {}
+    }
+    records.push({
+      name: e.name,
+      current_version: current,
+      latest_version: null,
+      installed_at: e.last_updated_at ?? null,
+      status: "unknown",
+      manager: "custom",
+    });
+  }
+  return records;
+}
+
+export async function saveCustom(entry: Partial<CustomEntry> & { name: string; install_cmd: string; update_cmd: string }): Promise<void> {
+  const entries = await loadCustomEntries();
+  let id = (entry as CustomEntry).id?.trim() ?? "";
+  if (!id) {
+    const slug = entry.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    id = `${slug}-${new Date().toISOString()}`;
+  }
+  const newEntry: CustomEntry = {
+    id,
+    name: entry.name,
+    install_cmd: entry.install_cmd,
+    update_cmd: entry.update_cmd,
+    version_cmd: entry.version_cmd,
+    version_regex: entry.version_regex,
+    last_updated_at: undefined,
+    notes: undefined,
+  };
+  const idx = entries.findIndex((e) => e.id === id);
+  if (idx >= 0) entries[idx] = newEntry; else entries.push(newEntry);
+  await saveCustomEntries(entries);
+}
+
+export async function upgradePackage(manager: PackageManager, name: string): Promise<CollectionSummary> {
+  if (manager === "brew") {
+    await runCommand("brew", ["upgrade", name]);
+  } else if (manager === "npm") {
+    await runCommand("npm", ["update", "-g", name], [0]);
+  } else if (manager === "pip") {
+    await runCommand("pip", ["install", "-U", name]);
+  } else if (manager === "custom") {
+    const entries = await loadCustomEntries();
+    const e = entries.find((x) => x.name === name);
+    if (!e) throw new Error(`custom entry not found: ${name}`);
+    const res = await runShell(e.update_cmd);
+    if (res.code !== 0) throw new Error(`update failed: ${res.stderr.trim()}`);
+    e.last_updated_at = new Date().toISOString();
+    await saveCustomEntries(entries);
+  }
+  return await collectInventory();
+}
+
+export async function upgradeAll(manager: PackageManager): Promise<CollectionSummary> {
+  if (manager === "brew") {
+    await runCommand("brew", ["upgrade"]);
+  } else if (manager === "npm") {
+    await runCommand("npm", ["update", "-g"], [0]);
+  } else if (manager === "pip") {
+    const out = await runCommand("pip", ["list", "--outdated", "--format=json"]);
+    try {
+      const items = JSON.parse(out.stdout) as Array<{ name: string }>;
+      for (const it of items) {
+        await runCommand("pip", ["install", "-U", it.name]);
+      }
+    } catch {}
+  } else if (manager === "custom") {
+    const entries = await loadCustomEntries();
+    for (const e of entries) {
+      const res = await runShell(e.update_cmd);
+      if (res.code === 0) e.last_updated_at = new Date().toISOString();
+    }
+    await saveCustomEntries(entries);
+  }
+  return await collectInventory();
 }
