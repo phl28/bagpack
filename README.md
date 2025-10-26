@@ -181,14 +181,14 @@
 
   Tauri
 
-  - cargo run -p bagpack-tauri
+  - cd apps/bagpack-tauri && pnpm install && pnpm tauri dev
   - cargo test -p bagpack-core
-  - pnpm --filter bagpack-tauri ui:test
+  - cd apps/bagpack-tauri && pnpm tauri build
 
   OpenTUI
 
-  - pnpm dev (watch mode with OpenTUI renderer)
-  - pnpm test (collector + UI tests)
-  - pnpm bagpack --export inventory.json
+  - cd apps/bagpack-tui && bun install && bun run dev
+  - cd apps/bagpack-tui && bun run watch
+  - cd apps/bagpack-tui && bun run check
 
   Scripts will be added once the prototypes are scaffolded; refer to the project Makefile for unified targets.

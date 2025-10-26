@@ -50,6 +50,7 @@ pub enum PackageManager {
     Brew,
     Npm,
     Pip,
+    Custom,
 }
 
 impl InventorySnapshot {
@@ -160,15 +161,22 @@ fn collect_brew() -> Result<Vec<PackageRecord>, CollectionError> {
     }
 
     let mut latest_map: HashMap<String, String> = HashMap::new();
-    if !outdated_output.stdout.trim().is_empty() {
-        let parsed: BrewOutdated = serde_json::from_str(&outdated_output.stdout)?;
-        for formula in parsed.formulae {
-            if let Some(latest) = formula
-                .latest_version
-                .or(formula.current_version)
-                .filter(|v| !v.is_empty())
-            {
-                latest_map.insert(formula.name, latest);
+    let text = outdated_output.stdout.trim();
+    if !text.is_empty() {
+        match serde_json::from_str::<BrewOutdated>(text) {
+            Ok(parsed) => {
+                for formula in parsed.formulae {
+                    if let Some(latest) = formula
+                        .latest_version
+                        .or(formula.current_version)
+                        .filter(|v| !v.is_empty())
+                    {
+                        latest_map.insert(formula.name, latest);
+                    }
+                }
+            }
+            Err(_err) => {
+                // Fallback: treat as no known outdated packages instead of failing collection
             }
         }
     }
