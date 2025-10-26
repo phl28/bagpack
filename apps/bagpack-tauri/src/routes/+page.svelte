@@ -79,6 +79,15 @@
     return "brew";
   }
 
+  // Search filter
+  let search = "";
+  const displayedPackages = (manager: string): PackageRecord[] => {
+    const list = packagesByManager(manager);
+    const q = search.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((p) => p.name.toLowerCase().includes(q));
+  };
+
   // Add Custom (Others) modal state and handlers
   let showAddModal = false;
   let addName = "";
@@ -258,6 +267,7 @@
             <div class="panel-heading-row">
               <h2>{managerLabels[selectedManager] ?? selectedManager}</h2>
               <div class="row-actions">
+                <input class="search" type="text" placeholder="Search packages…" bind:value={search} />
                 <span class="badge">{packagesByManager(selectedManager).length} pkg</span>
                 <span class="badge warn">{outdatedCount(selectedManager)} outdated</span>
                 {#if selectedManager === "custom"}
@@ -270,31 +280,35 @@
             </div>
           </header>
 
-          <ul>
-            {#each packagesByManager(selectedManager) as pkg}
-              <li>
-                <div class="row">
-                  <div>
-                    <strong>{pkg.name}</strong>
-                    <span class={`status-label ${pkg.status}`}>
-                      {statusLabels[pkg.status] ?? pkg.status}
-                    </span>
+          {#if displayedPackages(selectedManager).length === 0}
+            <p class="empty">No matching packages.</p>
+          {:else}
+            <ul>
+              {#each displayedPackages(selectedManager) as pkg}
+                <li>
+                  <div class="row">
+                    <div>
+                      <strong>{pkg.name}</strong>
+                      <span class={`status-label ${pkg.status}`}>
+                        {statusLabels[pkg.status] ?? pkg.status}
+                      </span>
+                    </div>
+                    {#if pkg.status === "outdated" || pkg.manager === "custom"}
+                      <button class="btn small" on:click={() => upgradeOne(pkg.manager, pkg.name)} disabled={actionBusy[`${pkg.manager}:${pkg.name}`] === true}>
+                        {actionBusy[`${pkg.manager}:${pkg.name}`] ? "Upgrading…" : "Upgrade"}
+                      </button>
+                    {/if}
                   </div>
-                  {#if pkg.status === "outdated" || pkg.manager === "custom"}
-                    <button class="btn small" on:click={() => upgradeOne(pkg.manager, pkg.name)} disabled={actionBusy[`${pkg.manager}:${pkg.name}`] === true}>
-                      {actionBusy[`${pkg.manager}:${pkg.name}`] ? "Upgrading…" : "Upgrade"}
-                    </button>
-                  {/if}
-                </div>
-                <small>
-                  Installed {formattedTimestamp(pkg.installed_at)} · current {pkg.current_version}
-                  {#if pkg.latest_version}
-                    → latest {pkg.latest_version}
-                  {/if}
-                </small>
-              </li>
-            {/each}
-          </ul>
+                  <small>
+                    Installed {formattedTimestamp(pkg.installed_at)} · current {pkg.current_version}
+                    {#if pkg.latest_version}
+                      → latest {pkg.latest_version}
+                    {/if}
+                  </small>
+                </li>
+              {/each}
+            </ul>
+          {/if}
         </article>
       </section>
     </div>
@@ -475,6 +489,14 @@
 }
 
 .row-actions { display: flex; align-items: center; gap: 0.5rem; }
+.search {
+  background: rgba(22,35,68,0.7);
+  border: 1px solid rgba(92,112,164,0.35);
+  border-radius: 0.5rem;
+  color: #e7ecff;
+  padding: 0.3rem 0.55rem;
+  min-width: 200px;
+}
 
 .panel h2 {
   font-size: 1.125rem;
@@ -552,6 +574,11 @@ li strong {
 
 li small {
   color: rgba(207, 216, 255, 0.65);
+}
+
+.empty {
+  color: rgba(207, 216, 255, 0.65);
+  margin: 0.25rem 0 0.5rem;
 }
 
 .status-label {
