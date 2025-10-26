@@ -267,7 +267,6 @@
             <div class="panel-heading-row">
               <h2>{managerLabels[selectedManager] ?? selectedManager}</h2>
               <div class="row-actions">
-                <input class="search" type="text" placeholder="Search packages…" bind:value={search} />
                 <span class="badge">{packagesByManager(selectedManager).length} pkg</span>
                 <span class="badge warn">{outdatedCount(selectedManager)} outdated</span>
                 {#if selectedManager === "custom"}
@@ -277,6 +276,9 @@
                   {actionBusy[selectedManager] ? "Updating…" : "Update all"}
                 </button>
               </div>
+            </div>
+            <div class="panel-subrow">
+              <input class="search" type="text" placeholder="Search packages…" bind:value={search} />
             </div>
           </header>
 
@@ -483,19 +485,30 @@
 
 .panel-heading-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
-.row-actions { display: flex; align-items: center; gap: 0.5rem; }
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.panel-subrow {
+  display: flex;
+  margin-top: 0.25rem;
+}
 .search {
   background: rgba(22,35,68,0.7);
   border: 1px solid rgba(92,112,164,0.35);
   border-radius: 0.5rem;
   color: #e7ecff;
   padding: 0.3rem 0.55rem;
-  min-width: 200px;
+  width: 100%;
 }
 
 .panel h2 {
